@@ -27,13 +27,13 @@ net.Receive("RAM_MapVoteUpdate", function(len, ply)
 end)
 
 local recentmaps
-if file.Exists( "mapvote/recentmaps.txt", "DATA" ) then
+if file.Exists("mapvote/recentmaps.txt", "DATA") then
     recentmaps = util.JSONToTable(file.Read("mapvote/recentmaps.txt", "DATA")) or {}
 else
     recentmaps = {}
 end
 
-if file.Exists( "mapvote/config.txt", "DATA" ) then
+if file.Exists("mapvote/config.txt", "DATA") then
     MapVote.Config = util.JSONToTable(file.Read("mapvote/config.txt", "DATA"))
     if not MapVote.Config then
         ErrorNoHalt("Failed to read mapvote/config.txt! Using default settings...")
@@ -44,7 +44,7 @@ else
 end
 
 local excludemaps
-if file.Exists( "ulx/votemaps.txt", "DATA" ) then
+if file.Exists("ulx/votemaps.txt", "DATA") then
     local votemaps = file.Read("ulx/votemaps.txt", "DATA")
     if not votemaps then
         excludemaps = {}
@@ -62,7 +62,7 @@ else
 end
 
 local cooldownnum
-function CoolDownDoStuff()
+local function CoolDownDoStuff()
     cooldownnum = MapVote.Config.MapsBeforeRevote or 3
 
     while table.Count(recentmaps) > cooldownnum do
@@ -70,7 +70,6 @@ function CoolDownDoStuff()
     end
 
     local curmap = game.GetMap():lower()..".bsp"
-
     if not table.HasValue(recentmaps, curmap) then
         table.insert(recentmaps, 1, curmap)
     end
