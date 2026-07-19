@@ -7,7 +7,7 @@ surface.CreateFont("RAM_VoteFont", {
 })
 
 surface.CreateFont("RAM_VoteFontCountdown", {
-    font = "Tahoma",
+    font = GAMEMODE_DEFAULT_UI_FONT or "Tahoma",
     size = 32,
     weight = 700,
     antialias = true,
