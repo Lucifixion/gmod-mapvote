@@ -1,11 +1,16 @@
+Vote = {}
+Vote.Config = {}
+
 MapVote = {}
-MapVote.Config = {}
+GameVote = {}
 
 --Default Config
 MapVoteConfigDefault = {
     MapLimit = 24,
+    ModeLimit = 24,
     TimeLimit = 28,
     AllowCurrentMap = false,
+    AllowCurrentMode = false,
     AllowRandom = false,
     EnableCooldown = true,
     MapsBeforeRevote = 3,
@@ -14,9 +19,14 @@ MapVoteConfigDefault = {
     AdditionalMaps = {
         murder = ""
     },
+    Gamemodes = {
+        murder = true
+    },
     MapConfigs = {}
 }
 --Default Config
+
+local enableGamemodeVote = CreateConVar("mapvote_enable_game_vote", "0", FCVAR_ARCHIVE)
 
 hook.Add("Initialize", "MapVoteConfigSetup", function()
     if not file.Exists("mapvote", "DATA") then
@@ -24,37 +34,60 @@ hook.Add("Initialize", "MapVoteConfigSetup", function()
     end
     if not file.Exists("mapvote/config.txt", "DATA") then
         file.Write("mapvote/config.txt", util.TableToJSON(MapVoteConfigDefault, true))
+    else
+        Vote.Config = util.JSONToTable(file.Read("mapvote/config.txt", "DATA"))
+        if not Vote.Config then
+            ErrorNoHalt("Failed to read mapvote/config.txt! Using default settings...")
+            Vote.Config = MapVoteConfigDefault
+        end
+    end
+
+    // Prop Hunt Enhanced has its own copy of this map vote, fuck you.
+    if SERVER and engine.ActiveGamemode() == "prop_hunt" then
+        include("autoload/mapvote.lua")
     end
 end)
-
-function MapVote.HasExtraVotePower(ply)
-    -- Example that gives admins more voting power
-    --[[
-    if ply:IsAdmin() then
-        return true
-    end
-    ]]
-
-    return false
-end
-
 
 MapVote.CurrentMaps = {}
 MapVote.Votes = {}
 
 MapVote.Allow = false
 
-MapVote.UPDATE_VOTE = 1
-MapVote.UPDATE_WIN = 3
+Vote.UPDATE_VOTE = 1
+Vote.UPDATE_WIN = 3
+
+function Vote.GetRandomWinningKey( tab )
+    if true then return table.GetWinningKey(tab) end
+
+	local highest = -math.huge
+	local winners = {}
+
+	for k, v in pairs( tab ) do
+		if v > highest then
+            winners = {}
+			table.Add(winners, k)
+			highest = v
+        elseif v == highest then
+            table.Add(winners, k)
+		end
+	end
+
+	return winners[math.random(#winners)]
+end
 
 MapVote.RandomPlaceholder = "#MapVoteRandom#"
 
 if SERVER then
     AddCSLuaFile()
     AddCSLuaFile("mapvote/cl_mapvote.lua")
+    AddCSLuaFile("mapvote/cl_gamevote.lua")
+    AddCSLuaFile("mapvote/cl_votemenu.lua")
 
     include("mapvote/sv_mapvote.lua")
+    include("mapvote/sv_gamevote.lua")
     include("mapvote/rtv.lua")
 else
     include("mapvote/cl_mapvote.lua")
+    include("mapvote/cl_gamevote.lua")
+    include("mapvote/cl_votemenu.lua")
 end

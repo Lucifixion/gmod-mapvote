@@ -4,20 +4,18 @@ util.AddNetworkString("RAM_MapVoteCancel")
 util.AddNetworkString("RAM_MapVoteOpen")
 util.AddNetworkString("RTV_Delay")
 
-MapVote.Continued = false
-
 net.Receive("RAM_MapVoteUpdate", function(len, ply)
     if MapVote.Allow and IsValid(ply) then
         local update_type = net.ReadUInt(3)
 
-        if update_type == MapVote.UPDATE_VOTE then
+        if update_type == Vote.UPDATE_VOTE then
             local map_id = net.ReadUInt(32)
 
             if MapVote.CurrentMaps[map_id] then
                 MapVote.Votes[ply:SteamID()] = map_id
 
                 net.Start("RAM_MapVoteUpdate")
-                net.WriteUInt(MapVote.UPDATE_VOTE, 3)
+                net.WriteUInt(Vote.UPDATE_VOTE, 3)
                 net.WriteEntity(ply)
                 net.WriteUInt(map_id, 32)
                 net.Broadcast()
@@ -31,16 +29,6 @@ if file.Exists("mapvote/recentmaps.txt", "DATA") then
     recentmaps = util.JSONToTable(file.Read("mapvote/recentmaps.txt", "DATA")) or {}
 else
     recentmaps = {}
-end
-
-if file.Exists("mapvote/config.txt", "DATA") then
-    MapVote.Config = util.JSONToTable(file.Read("mapvote/config.txt", "DATA"))
-    if not MapVote.Config then
-        ErrorNoHalt("Failed to read mapvote/config.txt! Using default settings...")
-        MapVote.Config = {}
-    end
-else
-    MapVote.Config = {}
 end
 
 local excludemaps
@@ -63,7 +51,7 @@ end
 
 local cooldownnum
 local function CoolDownDoStuff()
-    cooldownnum = MapVote.Config.MapsBeforeRevote or 3
+    cooldownnum = Vote.Config.MapsBeforeRevote or 3
 
     while table.Count(recentmaps) > cooldownnum do
         table.remove(recentmaps)
@@ -92,13 +80,15 @@ local function GetRandomFilteredMap(maps, search_prefixes, allow_current, curren
     return nil
 end
 
+local gamemodeConVar = GetConVar("gamemode")
+
 function MapVote.Start(length, current, limit, prefix, callback)
-    current = current or MapVote.Config.AllowCurrentMap or false
-    length = length or MapVote.Config.TimeLimit or 28
-    limit = limit or MapVote.Config.MapLimit or 24
-    local cooldown = MapVote.Config.EnableCooldown or MapVote.Config.EnableCooldown == nil and true
-    prefix = prefix or MapVote.Config.MapPrefixes or {}
-    local allowRandom = MapVote.Config.AllowRandom or false
+    current = current or Vote.Config.AllowCurrentMap or false
+    length = length or Vote.Config.TimeLimit or 28
+    limit = limit or Vote.Config.MapLimit or 24
+    local cooldown = Vote.Config.EnableCooldown or Vote.Config.EnableCooldown == nil and true
+    prefix = prefix or Vote.Config.MapPrefixes or {}
+    local allowRandom = Vote.Config.AllowRandom or false
 
     if prefix and type(prefix) ~= "table" then
         prefix = {prefix}
@@ -106,7 +96,7 @@ function MapVote.Start(length, current, limit, prefix, callback)
 
     local use_gamemode_maps = false
     if next(prefix) == nil then
-        local info = file.Read(GAMEMODE.Folder.."/"..GAMEMODE.FolderName..".txt", "GAME")
+        local info = file.Read("gamemodes/"..gamemodeConVar:GetString().."/"..gamemodeConVar:GetString()..".txt", "GAME")
 
         if info then
             local keys = util.KeyValuesToTable(info)
@@ -139,8 +129,8 @@ function MapVote.Start(length, current, limit, prefix, callback)
         end
     end
 
-    if MapVote.Config.AdditionalMaps ~= nil then
-        for k, v in pairs(MapVote.Config.AdditionalMaps) do
+    if Vote.Config.AdditionalMaps ~= nil then
+        for k, v in pairs(Vote.Config.AdditionalMaps) do
             if k == GAMEMODE_NAME then
                 local add_prefixes = string.Split(v, "|")
                 for i, map_prefix in pairs(add_prefixes) do
@@ -152,13 +142,13 @@ function MapVote.Start(length, current, limit, prefix, callback)
     end
 
     local playercount = player.GetCount();
-    if MapVote.Config.MapConfigs ~= nil then
-        for k, _ in pairs(MapVote.Config.MapConfigs) do
+    if Vote.Config.MapConfigs ~= nil then
+        for k, _ in pairs(Vote.Config.MapConfigs) do
             if table.HasValue(maps, k..".bsp") then
                 for _k=#maps,1,-1 do
                     local _v = maps[_k];
                     if _v == k..".bsp" then
-                        if (MapVote.Config.MapConfigs[k].Min and playercount < MapVote.Config.MapConfigs[k].Min) or (MapVote.Config.MapConfigs[k].Max and playercount > MapVote.Config.MapConfigs[k].Max) then
+                        if (Vote.Config.MapConfigs[k].Min and playercount < Vote.Config.MapConfigs[k].Min) or (Vote.Config.MapConfigs[k].Max and playercount > Vote.Config.MapConfigs[k].Max) then
                             table.remove(maps, _k);
                             break
                         end
@@ -220,6 +210,13 @@ function MapVote.Start(length, current, limit, prefix, callback)
             MapVote.Allow = false
             local map_results = {}
 
+            if GAMEMODE_NAME == "terrortown" then
+                timer.Stop("wait2prep")
+                timer.Stop("prep2begin")
+                timer.Stop("end2prep")
+                timer.Stop("winchecker")
+            end
+
             for k, v in pairs(MapVote.Votes) do
                 if not map_results[v] then
                     map_results[v] = 0
@@ -227,20 +224,16 @@ function MapVote.Start(length, current, limit, prefix, callback)
 
                 for _, v2 in pairs(player.GetAll()) do
                     if v2:SteamID() == k then
-                        if MapVote.HasExtraVotePower(v2) then
-                            map_results[v] = map_results[v] + 2
-                        else
-                            map_results[v] = map_results[v] + 1
-                        end
+                        map_results[v] = map_results[v] + 1
                     end
                 end
             end
 
             CoolDownDoStuff()
 
-            local winner = table.GetWinningKey(map_results) or 1
+            local winner = Vote.GetRandomWinningKey(map_results) or 1
             net.Start("RAM_MapVoteUpdate")
-            net.WriteUInt(MapVote.UPDATE_WIN, 3)
+            net.WriteUInt(Vote.UPDATE_WIN, 3)
             net.WriteUInt(winner, 32)
             net.Broadcast()
 
@@ -290,7 +283,10 @@ local chatCommands = {
     "vote",
     "!mapvote",
     "/mapvote",
-    "mapvote"
+    "mapvote",
+    "!ballot",
+    "/ballot",
+    "ballot"
 }
 hook.Add("PlayerSay", "Map Vote Commands", function(ply, text)
     -- Don't use "!" for admin because they are already used elsewhere

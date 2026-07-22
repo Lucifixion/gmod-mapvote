@@ -6,18 +6,18 @@ hook.Add("Initialize", "MapVote_Initialize_AutoVote", function()
             SetGlobalInt("ttt_rounds_left", rounds_left)
 
             local time_left = math.max(0, (GetConVar("ttt_time_limit_minutes"):GetInt() * 60) - CurTime())
-            local switchmap = false
+            local switch = false
             local nextmap = string.upper(game.GetMapNext())
 
             if rounds_left <= 0 then
                 LANG.Msg("limit_round", {mapname = nextmap})
-                switchmap = true
+                switch = true
             elseif time_left <= 0 then
                 LANG.Msg("limit_time", {mapname = nextmap})
-                switchmap = true
+                switch = true
             end
 
-            if switchmap then
+            if switch then
                 timer.Stop("end2prep")
                 MapVote.Start(nil, nil, nil, nil)
             end

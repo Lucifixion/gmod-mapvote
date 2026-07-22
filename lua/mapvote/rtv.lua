@@ -16,7 +16,7 @@ RTV.Wait = 60 -- The wait time in seconds. This is how long a player has to wait
 
 RTV._ActualWait = CurTime() + RTV.Wait
 
-RTV.PlayerCount = MapVote.Config.RTVPlayerCount or 3
+RTV.PlayerCount = Vote.Config.RTVPlayerCount or 3
 
 function RTV.ShouldChange()
     return RTV.TotalVotes >= math.Round(#player.GetAll()*0.66)
@@ -26,9 +26,12 @@ function RTV.RemoveVote()
     RTV.TotalVotes = math.Clamp(RTV.TotalVotes - 1, 0, math.huge)
 end
 
+local rtvMode = CreateConVar("mapvote_rtv_mode", "0", {FCVAR_REPLICATED, FCVAR_NOTIFY})
+
 function RTV.Start()
     if GAMEMODE_NAME == "terrortown" then
         net.Start("RTV_Delay")
+        net.WriteInt(rtvMode:GetInt(), 3)
         net.Broadcast()
 
         hook.Add("TTTEndRound", "MapvoteDelayed", function()
@@ -36,16 +39,24 @@ function RTV.Start()
         end)
     elseif GAMEMODE_NAME == "deathrun" then
         net.Start("RTV_Delay")
+        net.WriteInt(rtvMode:GetInt(), 3)
         net.Broadcast()
 
         hook.Add("RoundEnd", "MapvoteDelayed", function()
             MapVote.Start(nil, nil, nil, nil)
         end)
     else
-        PrintMessage(HUD_PRINTTALK, "The vote has been rocked, map vote imminent")
-        timer.Simple(4, function()
-            MapVote.Start(nil, nil, nil, nil)
-        end)
+        if rtvMode:GetInt() == 0 then
+            PrintMessage(HUD_PRINTTALK, "The vote has been rocked, map vote imminent")
+            timer.Simple(4, function()
+                MapVote.Start(nil, nil, nil, nil)
+            end)
+        else
+            PrintMessage(HUD_PRINTTALK, "The vote has been rocked, gamemode vote imminent")
+            timer.Simple(4, function()
+                GameVote.Start(nil, nil, nil, nil)
+            end)
+        end
     end
 end
 
