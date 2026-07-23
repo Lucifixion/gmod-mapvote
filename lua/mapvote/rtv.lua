@@ -37,7 +37,7 @@ function RTV.Start(mode)
         net.Broadcast()
 
         hook.Add("TTTEndRound", "MapvoteDelayed", function()
-            MapVote.Start(nil, nil, nil, nil)
+            RTV.StartVote(mode, false)
         end)
     elseif GAMEMODE_NAME == "deathrun" then
         net.Start("RTV_Delay")
@@ -45,33 +45,42 @@ function RTV.Start(mode)
         net.Broadcast()
 
         hook.Add("RoundEnd", "MapvoteDelayed", function()
-            MapVote.Start(nil, nil, nil, nil)
+            RTV.StartVote(mode, false)
         end)
-    elseif GAMEMODE_NAME == "thehiddenirisedition" then
-        GAME_RoundEnd = function(msg, winner)
-            if not ROUND_InAction then
-                return
-            end
-            if GAME_FREEZETIME then
-                return
-            end
+    elseif GAMEMODE_NAME == "thehiddenirisedition" and GAME_RoundInAction() then
+        net.Start("RTV_Delay")
+        net.WriteInt(mode, 3)
+        net.Broadcast()
 
-            timer.Simple(10.0, function()
-                MapVote.Start(nil, nil, nil, nil)
-            end)
+        local base = GAME_RoundEnd
+        GAME_RoundEnd = function(msg, winner)
+            base(msg, winner)
+
+            timer.Remove("Next_Round_WaitTime")
+            RTV.StartVote(mode, false)
         end
     else
-        if mode == 0 then
+        RTV.StartVote(mode, true)
+    end
+end
+
+function RTV.StartVote(mode, announce) 
+    if mode == 0 then
+        if announce then
             PrintMessage(HUD_PRINTTALK, "The vote has been rocked, map vote imminent")
-            timer.Simple(4, function()
-                MapVote.Start(nil, nil, nil, nil)
-            end)
-        else
-            PrintMessage(HUD_PRINTTALK, "The vote has been rocked, gamemode vote imminent")
-            timer.Simple(4, function()
-                GameVote.Start(nil, nil, nil, nil)
-            end)
         end
+
+        timer.Simple(4, function()
+            MapVote.Start(nil, nil, nil, nil)
+        end)
+    else
+        if announce then
+            PrintMessage(HUD_PRINTTALK, "The vote has been rocked, gamemode vote imminent")
+        end
+
+        timer.Simple(4, function()
+            GameVote.Start(nil, nil, nil, nil)
+        end)
     end
 end
 
