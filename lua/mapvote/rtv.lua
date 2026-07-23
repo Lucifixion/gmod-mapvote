@@ -52,9 +52,9 @@ function RTV.Start(mode)
         net.WriteInt(mode, 3)
         net.Broadcast()
 
-        local base = GAME_RoundEnd
+        Game_RoundEnd_Original = Game_RoundEnd_Original or GAME_RoundEnd
         GAME_RoundEnd = function(msg, winner)
-            base(msg, winner)
+            Game_RoundEnd_Original(msg, winner)
 
             timer.Remove("Next_Round_WaitTime")
             RTV.StartVote(mode, false)
@@ -134,7 +134,7 @@ function RTV.CanVote(ply)
     return true
 end
 
-function RTV.StartVote(ply)
+function RTV.Vote(ply)
     local can, err = RTV.CanVote(ply)
 
     if not can then
@@ -145,12 +145,12 @@ function RTV.StartVote(ply)
     RTV.AddVote(ply)
 end
 
-concommand.Add("rtv_start", RTV.StartVote)
+concommand.Add("rtv_start", RTV.Vote)
 
 hook.Add("PlayerSay", "RTV Chat Commands", function(ply, text)
     if GAMEMODE_NAME ~= "stopitslender" then
         if table.HasValue(RTV.ChatCommands, string.lower(text)) then
-            RTV.StartVote(ply)
+            RTV.Vote(ply)
             return ""
         end
     end
