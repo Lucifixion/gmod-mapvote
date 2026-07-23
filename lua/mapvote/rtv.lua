@@ -28,10 +28,12 @@ end
 
 local rtvMode = CreateConVar("mapvote_rtv_mode", "0", {FCVAR_REPLICATED, FCVAR_NOTIFY})
 
-function RTV.Start()
+function RTV.Start(mode)
+    mode = mode or 0
+
     if GAMEMODE_NAME == "terrortown" then
         net.Start("RTV_Delay")
-        net.WriteInt(rtvMode:GetInt(), 3)
+        net.WriteInt(mode, 3)
         net.Broadcast()
 
         hook.Add("TTTEndRound", "MapvoteDelayed", function()
@@ -39,14 +41,27 @@ function RTV.Start()
         end)
     elseif GAMEMODE_NAME == "deathrun" then
         net.Start("RTV_Delay")
-        net.WriteInt(rtvMode:GetInt(), 3)
+        net.WriteInt(mode, 3)
         net.Broadcast()
 
         hook.Add("RoundEnd", "MapvoteDelayed", function()
             MapVote.Start(nil, nil, nil, nil)
         end)
+    elseif GAMEMODE_NAME == "thehiddenirisedition" then
+        GAME_RoundEnd = function(msg, winner)
+            if not ROUND_InAction then
+                return
+            end
+            if GAME_FREEZETIME then
+                return
+            end
+
+            timer.Simple(10.0, function()
+                MapVote.Start(nil, nil, nil, nil)
+            end)
+        end
     else
-        if rtvMode:GetInt() == 0 then
+        if mode == 0 then
             PrintMessage(HUD_PRINTTALK, "The vote has been rocked, map vote imminent")
             timer.Simple(4, function()
                 MapVote.Start(nil, nil, nil, nil)
@@ -68,7 +83,7 @@ function RTV.AddVote(ply)
         PrintMessage(HUD_PRINTTALK, ply:Nick().." has voted to Rock the Vote. ("..RTV.TotalVotes.."/"..math.Round(#player.GetAll()*0.66)..")")
 
         if RTV.ShouldChange() then
-            RTV.Start()
+            RTV.Start(rtvMode:GetInt())
         end
     end
 end
@@ -80,7 +95,7 @@ hook.Add("PlayerDisconnected", "Remove RTV", function(ply)
 
     timer.Simple(0.1, function()
         if RTV.ShouldChange() then
-            RTV.Start()
+            RTV.Start(rtvMode:GetInt())
         end
     end)
 end)

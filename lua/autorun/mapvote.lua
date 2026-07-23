@@ -42,9 +42,14 @@ hook.Add("Initialize", "MapVoteConfigSetup", function()
         end
     end
 
-    // Prop Hunt Enhanced has its own copy of this map vote, fuck you.
-    if SERVER and engine.ActiveGamemode() == "prop_hunt" then
+    
+    local activeGamemode = engine.ActiveGamemode()
+    if SERVER and activeGamemode == "prop_hunt" then // Prop Hunt Enhanced has its own copy of this map vote, fuck you.
         include("autoload/mapvote.lua")
+    elseif activeGamemode == "thehiddenirisedition" then // Hidden iris edition is awful, fuck you also.
+        function VOTING:StartMapVoting()
+            MapVote.Start(nil, nil, nil, nil)
+        end
     end
 end)
 
