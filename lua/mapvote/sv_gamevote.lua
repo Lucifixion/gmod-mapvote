@@ -26,26 +26,30 @@ end)
 function GameVote.Start(length, current, limit, callback)
     current = current or Vote.Config.AllowCurrentMode or false
     length = length or Vote.Config.TimeLimit or 28
-    limit = limit or Vote.Config.ModeLimit or 24
+    limit = limit or Vote.Config.ModeLimit or 6
     local cooldown = Vote.Config.EnableCooldown or Vote.Config.EnableCooldown == nil and true
 
-    local vote_gamemodes = engine.GetGamemodes()
-    local gamemode_count = #vote_gamemodes
+    local all_gamemodes = table.MemberValuesFromKey(engine.GetGamemodes(), "name")
+    local vote_gamemodes = {}
 
     if Vote.Config.Gamemodes ~= nil then
-        for k, v in pairs(Vote.Config.Gamemodes) do
-            if table.HasValue(vote_gamemodes, k) and not v then
-                table.RemoveByValue(vote_gamemodes, k)
+        for _, v in ipairs(all_gamemodes) do
+            if Vote.Config.Gamemodes[v] == true then
+                table.insert(vote_gamemodes, v)
             end
         end
+    else
+        vote_gamemodes = all_gamemodes
     end
+
+    local gamemode_count = #vote_gamemodes
 
     if gamemode_count > 0 then
         net.Start("RAM_GameVoteStart")
         net.WriteUInt(gamemode_count, 32)
 
         for _, mode in pairs(vote_gamemodes) do
-            net.WriteString(mode.name)
+            net.WriteString(mode)
         end
 
         net.WriteUInt(length, 32)
@@ -84,18 +88,19 @@ function GameVote.Start(length, current, limit, callback)
             net.WriteUInt(winner, 32)
             net.Broadcast()
 
-            local mode = GameVote.CurrentModes[winner].name
-            RunConsoleCommand("gamemode", mode)
+            local mode = GameVote.CurrentModes[winner]
 
             timer.Simple(4, function()
                 if hook.Run("GameVoteChange", map) ~= false then
                     if callback then
                         callback(mode)
                     else
-                        MapVote.Start(nil, nil, nil, nil)
+                        RunConsoleCommand("gamemode", mode)
 
                         net.Start("RAM_GameVoteCancel")
                         net.Broadcast()
+
+                        MapVote.Start(nil, nil, nil, nil)
                     end
                 end
             end)
